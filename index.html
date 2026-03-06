@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My GitHub Projects</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 2em;
+            background-color: #000;
+            color: #0F0;
+        }
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        h1 {
+            text-align: center;
+            color: #0F0;
+            text-shadow: 0 0 5px #0F0;
+        }
+        #repos {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1em;
+        }
+        .repo {
+            border: 1px solid #0F0;
+            padding: 1em;
+            border-radius: 5px;
+            background-color: #000;
+            width: 80%;
+            max-width: 600px;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 0.5s forwards;
+        }
+        .repo h2 {
+            margin-top: 0;
+        }
+        .repo a {
+            color: #0F0;
+            text-decoration: none;
+        }
+        .repo a:hover {
+            text-decoration: underline;
+        }
+        #username-form {
+            text-align: center;
+            margin-bottom: 2em;
+        }
+        #username-input {
+            background-color: #000;
+            border: 1px solid #0F0;
+            color: #0F0;
+            padding: 0.5em;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        #username-submit {
+            background-color: #0F0;
+            border: 1px solid #0F0;
+            color: #000;
+            padding: 0.5em 1em;
+            cursor: pointer;
+        }
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrix"></canvas>
+    <h1>GitHub Projects Viewer</h1>
+    <div id="username-form">
+        <input type="text" id="username-input" placeholder="Enter GitHub Username">
+        <button id="username-submit">Fetch Repos</button>
+    </div>
+    <div id="repos"></div>
+
+    <script>
+        const canvas = document.getElementById('matrix');
+        const context = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
+        const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const nums = '0123456789';
+
+        const alphabet = katakana + latin + nums;
+
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+
+        const rainDrops = [];
+
+        for (let x = 0; x < columns; x++) {
+            rainDrops[x] = 1;
+        }
+
+        const draw = () => {
+            context.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+
+            context.fillStyle = '#0F0';
+            context.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < rainDrops.length; i++) {
+                const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+                context.fillText(text, i * fontSize, rainDrops[i] * fontSize);
+
+                if (rainDrops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    rainDrops[i] = 0;
+                }
+                rainDrops[i]++;
+            }
+        };
+
+        setInterval(draw, 30);
+
+        document.getElementById('username-submit').addEventListener('click', () => {
+            const username = document.getElementById('username-input').value;
+            if (!username) {
+                alert('Please enter a GitHub username.');
+                return;
+            }
+
+            const reposContainer = document.getElementById('repos');
+            reposContainer.innerHTML = ''; // Clear previous results
+
+            fetch(`/api/repos/${username}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(repos => {
+                    if (repos.message && repos.message.includes("Not Found")) {
+                        reposContainer.innerHTML = '<p>User not found.</p>';
+                        return;
+                    }
+                    if (repos.length === 0) {
+                        reposContainer.innerHTML = '<p>No repositories found for this user.</p>';
+                        return;
+                    }
+                    repos.forEach((repo, index) => {
+                        const repoElement = document.createElement('div');
+                        repoElement.classList.add('repo');
+                        repoElement.style.animationDelay = `${index * 0.1}s`;
+                        repoElement.innerHTML = `
+                            <h2><a href="${repo.html_url}" target="_blank">${repo.name}</a></h2>
+                            <p>${repo.description || 'No description'}</p>
+                        `;
+                        reposContainer.appendChild(repoElement);
+                    });
+                    document.getElementById('username-form').style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('Error fetching repositories:', error);
+                    reposContainer.innerHTML = '<p>Error fetching repositories. Please check the username and try again.</p>';
+                });
+        });
+    </script>
+</body>
+</html>
